@@ -1,0 +1,383 @@
+---
+title: "Assignment 1 - Language Development in ASD - part 3"
+author: "Riccardo Fusaroli"
+date: "August 10, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tnoncs/Assignment2')
+```
+
+
+```{r}
+library(stringr)
+library(tidyverse)
+library(plyr)
+library(ggplot2)
+library(lme4)
+library(modelr)
+library(Metrics)
+```
+
+## Welcome to the third exciting part of the Language Development in ASD exercise
+
+In this exercise we will delve more in depth with different practices of model comparison and model selection, by first evaluating your models from last time, then learning how to cross-valChild.IDate models and finally how to systematically compare models.
+
+N.B. There are several datasets for this exercise, so pay attention to which one you are using!
+
+1. The (training) dataset from last time (the awesome one you produced :-) ).
+2. The (test) datasets on which you can test the models from last time:
+* Demographic and clinical data: https://www.dropbox.com/s/ra99bdvm6fzay3g/demo_test.csv?dl=0
+* Utterance Length data: https://www.dropbox.com/s/uxtqqzl18nwxowq/LU_test.csv?dl=0
+* Word data: https://www.dropbox.com/s/1ces4hv8kh0stov/token_test.csv?dl=0
+
+
+### Exercise 1) Testing model performance
+
+How dChild.ID your models from last time perform? In this exercise you have to compare the results on the training data () and on the test data. Report both of them. Compare them. Discuss why they are different.
+
+- recreate the models you chose last time (just write the code again and apply it to Assignment2TrainData1.csv)
+- calculate performance of the model on the training data: root mean square error is a good measure. (Tip: google the functions rmse() and predict() )
+- create the test dataset (apply the code from assignment 1 part 1 to clean up the 3 test datasets)
+- test the performance of the models on the test data (Tips: time to reuse "predict()")
+- optional: predictions are never certain, can you Child.IDentify the uncertainty of the predictions? (e.g. google predictinterval())
+
+```{r}
+final_data = read.csv("final_data.csv")
+
+library(lmerTest)
+ahuehuete =lmer(CHI_MLU ~ ADOS + Visit + verbalIQ + types_CHI + Visit*Diagnosis +  (1+Visit|Child.ID), final_data)
+
+library(modelr)
+modelr::rmse(ahuehuete, final_data) # 0.3069695
+```
+
+```{r}
+
+
+# new stuff
+demo_test=read.csv("demo_test.csv")
+LU_test=read.csv("LU_test.csv")
+token_test=read.csv("token_test.csv")
+
+library(plyr)
+LU_test=plyr::rename(LU_test, c("SUBJ"="Child.ID", "Visit"="Visit"))
+token_test=plyr::rename(token_test, c("SUBJ"="Child.ID", "Visit"="Visit"))
+
+
+library(stringr)
+
+LU_test$Visit=str_extract(LU_test$Visit, "\\d")
+token_test$Visit=str_extract(token_test$Visit, "\\d")
+
+demo_test$Child.ID=gsub("\\.", "", demo_test$Child.ID)
+LU_test$Child.ID=gsub("\\.", "", LU_test$Child.ID)
+token_test$Child.ID=gsub("\\.", "", token_test$Child.ID)
+
+demo_test=plyr::rename(demo_test, c("MullenRaw"="nonverbalIQ", "ExpressiveLangRaw"="verbalIQ"))
+
+demo_test$Age=as.numeric(demo_test$Age)
+
+demo_sub_t=demo_test[, c("Child.ID", "Visit", "Ethnicity", "Diagnosis", "Gender", "Age", "ADOS",  "verbalIQ", "nonverbalIQ")]
+
+LU_sub_t=LU_test[,c("Child.ID", "Visit", "MOT_MLU", "MOT_LUstd", "CHI_MLU", "CHI_LUstd")]
+token_sub_t=token_test[,c("Child.ID", "Visit", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")]
+
+demo_LU_test=merge(demo_sub_t, LU_sub_t)
+merged_all_test=merge(demo_LU_test, token_sub_t)
+
+extract=merged_all_test[, c("Child.ID", "Visit", "nonverbalIQ", "verbalIQ", "ADOS")]
+extract_sub=data.frame(extract[extract$Visit==1,])
+final2=merge(extract_sub, merged_all_test, by="Child.ID")
+
+final_data_test=final2[, c("Child.ID", "Visit.y", "Ethnicity", "Diagnosis", "Gender", "Age", "ADOS.x", "verbalIQ.x", "nonverbalIQ.x", "MOT_MLU", "MOT_LUstd", "CHI_MLU", "CHI_LUstd", "types_MOT", "types_CHI", "tokens_MOT", "tokens_CHI")]
+
+children1=c(final_data_test$Child.ID)
+vmi1=as.numeric(as.factor(children1))
+final_data_test$Child.ID=vmi1
+
+final_data_test=plyr::rename(final_data_test, c("Visit.y"="Visit", "ADOS.x"="ADOS", "verbalIQ.x"="verbalIQ", "nonverbalIQ.x"="nonverbalIQ"))
+
+levels(final_data_test$Diagnosis)[levels(final_data_test$Diagnosis)=="A"] <- "ASD"
+levels(final_data_test$Diagnosis)[levels(final_data_test$Diagnosis)=="B"] <- "TD"
+
+final_data_test$Gender=factor(final_data_test$Gender)
+
+levels(final_data_test$Gender)[levels(final_data_test$Gender)=="1"] <- "M"
+levels(final_data_test$Gender)[levels(final_data_test$Gender)=="2"] <- "F"
+
+write.csv(final_data_test, file="final_data_test.csv")
+
+final_data_test$Visit= as.numeric(final_data_test$Visit)
+final_data_test$ADOS= as.numeric(final_data_test$ADOS)
+
+```
+
+
+```{r}
+
+library(Metrics)
+#root mean square error for model on test data
+final_data_test$pred = predict(ahuehuete, final_data_test)
+Metrics::rmse(final_data_test$CHI_MLU, final_data_test$pred) # 0.5134477
+
+final_data_test$ADOS=as.factor(final_data_test$ADOS)
+
+```
+
+
+[HERE GOES YOUR ANSWER]
+
+### Exercise 2) Model Selection via Cross-valChild.IDation (N.B: ChildMLU!)
+
+One way to reduce bad surprises when testing a model on new data is to train the model via cross-valChild.IDation. 
+
+In this exercise you have to use cross-valChild.IDation to calculate the predictive error of your models and use this predictive error to select the best possible model.
+
+- Create the basic model of ChildMLU as a function of Time and Diagnosis (don't forget the random effects!).
+- Make a cross-valChild.IDated version of the model. (Tips: google the function "createFolds";  loop through each fold, train a model on the other folds and test it on the fold)
+- Report the results and comment on them.
+
+
+
+
+- Bonus Question 1: How would you go comparing the performance of the basic model and the cross-valChild.IDated model on the testing set?
+- Bonus Question 2: What is the effect of changing the number of folds? Can you plot RMSE as a function of number of folds?
+- Bonus Question 3: compare the cross-valChild.IDated predictive error against the actual predictive error on the test data
+
+
+```{r}
+library(caret)
+library(Metrics)
+
+#create a function for %not in% - from the net
+"%not in%" <- function (x, table) is.na(match(x, table, nomatch=NA_integer_))
+#create empty dataframes to save output from cross-valChild.IDation
+croval_test= data.frame() #for the test data
+croval_train= data.frame() #for the train data
+#create folds
+#using 4 folds for now, generally they use 5
+#use unique so the data from one child goes to one fold
+folds=createFolds(unique(final_data$Child.ID), 4)
+#loop through the folds
+for (i in folds) {
+#create a dataframe that has 3 folds - this is the train data
+three_fold = subset(final_data, Child.ID %not in% i)
+#create a dataframe that has 1 fold - this is the test data
+one_fold= subset(final_data, Child.ID %in% i)
+# model 11 - the basic model, on the train data of 3 folds
+model11= lmer(CHI_MLU ~ Diagnosis + Visit + (1 + Visit|Child.ID), three_fold)
+#get rmse
+train_model_error=modelr::rmse(model11, three_fold)
+# Metrics needs predict() before
+#get rmse
+pred= predict(model11, one_fold, allow.new.levels=TRUE)
+test_model_error = Metrics::rmse(one_fold$CHI_MLU, pred)
+croval_test = rbind(croval_test, data.frame(test_model_error))
+croval_train= rbind(croval_train, data.frame(train_model_error))
+}
+
+mean_test_model11= mean(croval_test$test_model_error)
+mean_train_model11= mean(croval_train$train_model_error)
+
+# mean of the rmse of the data the model is trained on (three folds)
+mean_train_model11
+# mean of the rmse of the data the model is tested on (one fold) 
+mean_test_model11
+
+```
+
+- Now try to find the best possible predictive model of ChildMLU, that is, the one that produces the best cross-valChild.IDated results.
+```{r}
+# function for crossvalidation
+folds = createFolds(unique(final_data$Child.ID),4)
+crossvalidate = function (model,data,fold) {
+  `%not in%` <- function (x, table) is.na(match(x, table, nomatch=NA_integer_))
+  output_df = data.frame(rmse_train=numeric(),
+                         rmse_test=numeric(),
+                         mean_train=numeric(),
+                         sd_train=numeric(),
+                         mean_test=numeric(),
+                         sd_test=numeric())
+  
+  for (i in fold) {
+    #subset of data except for the 1 fold
+    train_d = subset(data, Child.ID %not in% i)
+    #subset including only 1 fold
+    test_d = subset(data, Child.ID %in% i)
+    model_val = update(model,data=train_d)
+    print(summary(model_val))
+    #rmse of train data
+    pred1 = predict(model_val, train_d,allow.new.levels=TRUE)
+    output_df[nrow(output_df)+1,1] = Metrics::rmse(train_d$CHI_MLU, pred1)
+    
+    #rmse of test data
+    pred2 = predict(model_val, test_d,allow.new.levels=TRUE)
+    output_df[nrow(output_df),2]=Metrics::rmse(test_d$CHI_MLU, pred2)
+  }
+  output_df[nrow(output_df),3]= mean(output_df$rmse_train)
+  output_df[nrow(output_df),4]= sd(output_df$rmse_train)
+  output_df[nrow(output_df),5]= mean(output_df$rmse_test)
+  output_df[nrow(output_df),6]= sd(output_df$rmse_test)
+  
+  return(output_df)
+}
+```
+
+
+```{r}
+ahuehuete= lmer(CHI_MLU ~ ADOS + Visit + verbalIQ + types_CHI + (1 + Visit|Child.ID), final_data)
+"%not in%" <- function (x, table) is.na(match(x, table, nomatch=NA_integer_))
+
+croval_test= data.frame() 
+croval_train= data.frame() 
+library(caret)
+folds=createFolds(unique(final_data$Child.ID), 4)
+
+for (i in folds) {
+  three_fold = subset(final_data, Child.ID %not in% i)
+  one_fold= subset(final_data, Child.ID %in% i)
+  model_old= lmer(CHI_MLU ~ ADOS + Visit +verbalIQ+ types_CHI + Diagnosis*Visit + (1 + Visit|Child.ID), three_fold)
+  train_model_error=modelr::rmse(model_old, three_fold)
+  pred= predict(model_old, one_fold, allow.new.levels=TRUE)
+  test_model_error = Metrics::rmse(one_fold$CHI_MLU, pred)
+  
+  croval_test = rbind(croval_test, data.frame(test_model_error))
+  croval_train= rbind(croval_train, data.frame(train_model_error))
+}
+
+mean_test_model_old= mean(croval_test$test_model_error)
+mean_train_model_old= mean(croval_train$train_model_error)
+
+#-------
+croval_test= data.frame() 
+croval_train= data.frame() 
+
+folds=createFolds(unique(final_data$Child.ID), 4)
+
+for (i in folds) {
+  three_fold = subset(final_data, Child.ID %not in% i)
+  one_fold= subset(final_data, Child.ID %in% i)
+  model1= lmer(CHI_MLU ~ ADOS + Visit + verbalIQ + Visit*Diagnosis + I(Visit^2) + (1 + Visit|Child.ID), three_fold)
+  train_model_error=modelr::rmse(model1, three_fold)
+  pred= predict(model1, one_fold, allow.new.levels=TRUE)
+  test_model_error = Metrics::rmse(one_fold$CHI_MLU, pred)
+  
+  croval_test = rbind(croval_test, data.frame(test_model_error))
+  croval_train= rbind(croval_train, data.frame(train_model_error))
+}
+
+mean_test_model1= mean(croval_test$test_model_error)
+mean_train_model1= mean(croval_train$train_model_error)
+
+best_model= cbind(mean_test_model_old, mean_test_model11, mean_test_model1, mean_train_model_old, mean_train_model11, mean_train_model1)
+
+```
+
+
+### Exercise 3) Assessing the single child
+
+Let's get to business. This new kChild.IDdo - Bernie - has entered your clinic. This child has to be assessed according to his group's average and his expected development.
+
+Bernie is one of the six kChild.IDs in the test dataset, so make sure to extract that child alone for the following analysis.
+
+You want to evaluate:
+
+- how does the child fare in ChildMLU compared to the average TD child at each Visit? Define the distance in terms of absolute difference between this Child and the average TD.
+(Tip: recreate the equation of the model: Y=Intercept+BetaX1+BetaX2, etc; input the average of the TD group  for each parameter in the model as X1, X2, etc.).
+
+- how does the child fare compared to the model predictions at Visit 6? Is the child below or above expectations? (tip: use the predict() function on Bernie's data only and compare the prediction with the actual performance of the child)
+
+```{r}
+bernie = subset(final_data_test, Child.ID=="2")
+
+Visit1_train= subset(final_data, final_data$Visit == "1" & final_data$Diagnosis == "TD")
+Visit2_train= subset(final_data, final_data$Visit == "2" & final_data$Diagnosis == "TD")
+Visit3_train= subset(final_data, final_data$Visit == "3" & final_data$Diagnosis == "TD")
+Visit4_train= subset(final_data, final_data$Visit == "4" & final_data$Diagnosis == "TD")
+Visit5_train= subset(final_data, final_data$Visit == "5" & final_data$Diagnosis == "TD")
+Visit6_train= subset(final_data, final_data$Visit == "6" & final_data$Diagnosis == "TD")
+
+Visit1_bernie= bernie$CHI_MLU[1] 
+Visit1=Visit1_bernie - mean(Visit1_train$CHI_MLU)
+
+Visit2_bernie= bernie$CHI_MLU[2] 
+Visit2=Visit2_bernie - mean(Visit2_train$CHI_MLU)
+
+Visit3_bernie= bernie$CHI_MLU[3] 
+Visit3=Visit3_bernie - mean(Visit3_train$CHI_MLU)
+
+Visit4_bernie= bernie$CHI_MLU[4] 
+Visit4=Visit4_bernie - mean(Visit4_train$CHI_MLU)
+
+Visit5_bernie= bernie$CHI_MLU[5] 
+Visit5=Visit5_bernie - mean(Visit5_train$CHI_MLU)
+
+Visit6_bernie= bernie$CHI_MLU[6] 
+Visit6=Visit6_bernie - mean(Visit6_train$CHI_MLU)
+
+bernie$others= rbind(mean(Visit1_train$CHI_MLU), mean(Visit2_train$CHI_MLU), mean(Visit3_train$CHI_MLU), mean(Visit4_train$CHI_MLU), mean(Visit5_train$CHI_MLU), mean(Visit6_train$CHI_MLU))
+
+bernie$bernies_development= rbind(Visit1, Visit2, Visit3, Visit4, Visit5, Visit6)
+```
+
+
+
+
+
+```{r}
+basic_model = lmer(CHI_MLU ~ Diagnosis+ Visit+ (1+Visit|Child.ID), data=final_data)
+
+bernie$basic_prediction=predict(basic_model, bernie)
+modelr::rmse(basic_model, bernie) #0.4150528
+
+ggplot(bernie, aes(Visit)) +
+  geom_line(aes(Visit, CHI_MLU))+
+  geom_line(aes(Visit, basic_prediction), colour= "red") +
+  labs(x="Visit", y="CHI_MLU") 
+
+#using the best model I could make
+bernie$best_model_prediction=predict(ahuehuete, bernie)
+modelr::rmse(ahuehuete, bernie) #0.3957958
+
+ggplot(bernie, aes(Visit)) +
+  geom_line(aes(Visit, CHI_MLU))+
+  geom_line(aes(Visit, best_model_prediction), colour= "red") +
+  labs(x="Visit", y="CHI_MLU") 
+
+
+#see it compared to other children
+ggplot(bernie, aes(Visit)) +
+  geom_line(aes(Visit, CHI_MLU))+
+  geom_line(aes(Visit, others), colour= "red") +
+  labs(x="Visit", y="CHI_MLU") 
+
+difference= select(bernie, CHI_MLU, others, bernies_development, basic_prediction, best_model_prediction)
+```
+
+
+[HERE GOES YOUR ANSWER]
+
+### OPTIONAL: Exercise 4) Model Selection via Information Criteria
+Another way to reduce the bad surprises when testing a model on new data is to pay close attention to the relative information criteria between the models you are comparing. Let's learn how to do that!
+
+Re-create a selection of possible models explaining ChildMLU (the ones you tested for exercise 2, but now trained on the full dataset and not cross-valChild.IDated).
+
+Then try to find the best possible predictive model of ChildMLU, that is, the one that produces the lowest information criterion.
+
+- Bonus question for the optional exercise: are information criteria correlated with cross-valChild.IDated RMSE? That is, if you take AIC for Model 1, Model 2 and Model 3, do they co-vary with their cross-valChild.IDated RMSE?
+
+```{r}
+
+```
+
+
+### OPTIONAL: Exercise 5): Using Lasso for model selection
+Welcome to the last secret exercise. If you have already solved the previous exercises, and still there's not enough for you, you can expand your expertise by learning about penalizations. Check out this tutorial: http://machinelearningmastery.com/penalized-regression-in-r/ and make sure to google what penalization is, with a focus on L1 and L2-norms. Then try them on your data!
+
+```{r}
+
+```
+
