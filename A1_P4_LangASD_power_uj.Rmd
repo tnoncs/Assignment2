@@ -1,0 +1,264 @@
+---
+title: "Assignment 1 - Language Development in ASD - part 4"
+author: "Riccardo Fusaroli"
+date: "August 10, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = '/home/tnoncs/Assignment2')
+```
+
+## Welcome to the fourth exciting part of the Language Development in ASD exercise
+
+In this exercise we will assess how many participants we would need to adequately replicate our findings (ensuring our sample size is adequate, our alpha at 0.05 and our beta at 0.8).
+
+
+### Exercise 1
+
+How much power does your study have (if your model estimates are quite right)?
+- [GitHub]Load your dataset, fit your favorite model, assess power for your main effects and interactions of interest.
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+ # can we use this and what are the limits of it?
+
+
+```{r} 
+library(lmerTest)
+final_data = read.csv("final_data.csv")
+ahuehuete=lmer(CHI_MLU ~ ADOS + Visit + verbalIQ + (1 + Visit | Child.ID), final_data, REML=F) 
+
+library(simr)
+power_Visit = powerSim(ahuehuete, fixed("Visit"), nsim=200) 
+power_Visit
+
+power_verbalIQ = powerSim(ahuehuete, fixed("verbalIQ"), nsim=200)
+power_verbalIQ
+
+power_ados = powerSim(ahuehuete, fixed("ADOS"), nsim=200) 
+power_ados
+
+```
+
+### Exercise 2
+How would you perform a more conservative power analysis?
+- Identify and justify a minimum effect size for each of your relevant effects
+# Look at MLU data, I'm interested in mean and range (SD?) (just to have some sense of the data)
+- [GitHub] take the model from exercise 1 and replace the effects with the minimum effect size that you'd accept. # how to replace? code in ppt
+- [GitHub] assess the power curve by Child.ID, identifying an ideal number of participants to estimate each effect # also on slides, plot with plot()
+- OPTIONAL if your power estimates do not reach an acceptable threshold simulate additional participants and repeat the previous analysis # guess it's "Riccardo's clumsy function", only id, mlu and diagnosis
+- Report the power analysis and comment on what you can (or cannot) use its estimates for.
+
+```{r}
+# Minimum effect size
+
+# #look at fixed effects estimated from model
+fixef(ahuehuete) #(Intercept)        ADOS       Visit    verbalIQ 
+                # -0.31102452  0.15801060  0.23321875  0.07537557 
+
+# #replace effects with minimum
+fixef(ahuehuete)["Visit"] = 0.2
+fixef(ahuehuete)["ADOS"] = -0.07
+fixef(ahuehuete)["verbalIQ"] = 0.06
+powerCurveVisit = powerCurve(ahuehuete,fixed("Visit"),along="Child.ID", nsim=200)
+powerCurveados = powerCurve(ahuehuete,fixed("ADOS",method='f'),along="Child.ID", nsim=200)
+powerCurveIQ = powerCurve(ahuehuete,fixed("verbalIQ"),along="Child.ID", nsim=200)
+
+plot(powerCurveVisit) #
+plot(powerCurveados) 
+plot(powerCurveIQ) 
+
+# all Visits
+Visit_1=data.frame(final_data[final_data$Visit==1,])
+Visit_2=data.frame(final_data[final_data$Visit==2,])
+Visit_3=data.frame(final_data[final_data$Visit==3,])
+Visit_4=data.frame(final_data[final_data$Visit==4,])
+Visit_5=data.frame(final_data[final_data$Visit==5,])
+Visit_6=data.frame(final_data[final_data$Visit==6,])
+
+
+library(dplyr)
+
+final_data$Visit=as.factor(final_data$Visit)
+
+final_data %>% 
+  group_by(Visit) %>% 
+  summarise(mena=mean(CHI_MLU))
+
+final_data$Visit=as.numeric(final_data$Visit)
+
+```
+
+```{r}
+
+# for Visit assumption: CHI_MLU increases with each Visit
+final_data$Visit= as.numeric(final_data$Visit)
+
+library(tidyverse)
+get_mean=final_data %>% 
+  group_by(Visit) %>% 
+  summarise(meany=mean(CHI_MLU))
+ 
+ get_mean$meany[6] - get_mean$meany[5] 
+ get_mean$meany[5] - get_mean$meany[4] 
+ get_mean$meany[4] - get_mean$meany[3] 
+ get_mean$meany[3] - get_mean$meany[2] 
+ get_mean$meany[2] - get_mean$meany[1] 
+
+diff_mean= c(0.06554043, 0.01053873, 0.3223217, 0.3976116, 0.3064135)
+mean(diff_mean) #0.2204852
+
+# for verbal_IQ #assumption: CHI_MLU decreases with decreasing verbal_IQ
+
+please=final_data %>% 
+  group_by(verbalIQ) %>% 
+  summarise(meany=mean(CHI_MLU))
+
+ please$meany[1] - please$meany[2]
+ please$meany[2] - please$meany[3]  
+ please$meany[3] - please$meany[4]
+ please$meany[4] - please$meany[5]
+ please$meany[5] - please$meany[6]
+ please$meany[6] - please$meany[7]
+ please$meany[7] - please$meany[8]
+ please$meany[8] - please$meany[9] 
+ please$meany[9] - please$meany[10] 
+ please$meany[10] - please$meany[11]
+ please$meany[11] - please$meany[12] 
+ please$meany[12] - please$meany[13] 
+ please$meany[13] - please$meany[14]
+ please$meany[14] - please$meany[15] 
+ please$meany[15] - please$meany[16]
+ please$meany[16] - please$meany[17] 
+ please$meany[17] - please$meany[18]
+ please$meany[18] - please$meany[19]
+ please$meany[19] - please$meany[20]
+ please$meany[20] - please$meany[21]
+
+diff_mean= c(-0.3983012, 0.4411483, -0.27029,  -0.4901884,  -0.09061714, -0.2558562, -0.2272481, 0.1203413, -0.1361233,  0.1749956, 0.0786436, -0.2243123,  -0.2732404,  0.661258, -0.5727849, -0.5296179, 0.3196251,-0.7043686,   1.141357, -1.071635)
+mean(diff_mean)
+
+
+
+porfavor=final_data %>% 
+  group_by(ADOS) %>% 
+  summarise(meany=mean(CHI_MLU))
+
+ porfavor$meany[1] - porfavor$meany[2]
+ porfavor$meany[2] - porfavor$meany[3]
+ porfavor$meany[3] - porfavor$meany[4] 
+ porfavor$meany[4] - porfavor$meany[5]
+ porfavor$meany[5] - porfavor$meany[6] 
+ porfavor$meany[6] - porfavor$meany[7] 
+ porfavor$meany[7] - porfavor$meany[8] 
+ porfavor$meany[8] - porfavor$meany[9] 
+ porfavor$meany[9] - porfavor$meany[10]
+ porfavor$meany[10] - porfavor$meany[11] 
+ porfavor$meany[11] - porfavor$meany[12] 
+ porfavor$meany[12] - porfavor$meany[13] 
+ porfavor$meany[13] - porfavor$meany[14] 
+ porfavor$meany[14] - porfavor$meany[15]
+ porfavor$meany[15] - porfavor$meany[16] 
+ porfavor$meany[16] - porfavor$meany[17] 
+ porfavor$meany[17] - porfavor$meany[18] 
+ porfavor$meany[18] - porfavor$meany[19] 
+
+diff_mean= c(-0.09135862, 0.5711666, -0.3078953, 0.505379, -0.3068811, -1.118621, 1.05309, 0.04358514, -0.1436436, 1.247226, -1.922834, 1.43909, 0.3074948, -0.01865641, -0.3640089, 0.4910415, -0.100201, -0.001352565) 
+mean(diff_mean) #0.0712567 #has to be negative
+
+```
+
+
+### Exercise 3
+
+Assume you have only the resources to collect 30 kids (15 with ASD and 15 TDs). Identify the power for each relevant effect and discuss whether it's worth to run the study and why.
+
+# create 30 new participants and run the analysis on them, or just pick randomly
+# maybe interaction
+
+# we want to get the minimum effect size possible from this
+
+```{r}
+### Riccardo's clumsy function to simulate new participants
+### TO DO points are only notes for myself, so not part of the assignment
+
+createNewData <- function (participants,visits,model){
+  # participants is the number of subjects
+  # visits is the number of visits
+  # TO DO: LOOP THROUGH ALL FE ROWS AND AUTOMATICALLY EXTRACT NAMES OF FIXED EFFECTS AND ESTIMATES
+  fe <- fixef(model)
+  Intercept <- fe[1] #intercept
+  bVisit <- fe[2] #visit
+  bDiagnosis <- fe[3] #diagnosis
+  bVisitDiagnosis <- fe[4] #visit diagnosis interaction
+  # TO DO: INTEGRATE STANDARD ERROR?
+  
+  # TO DO: LOOP THROUGH ALL VC COMPONENTS AND AUTOMATICALLY EXTRACT NAMES OF EFFECTS AND ESTIMATES
+  vc<-VarCorr(model) # variance component
+  sigmaSubject <- as.numeric(attr(vc[[1]],"stddev")[1]) # random intercept by subject
+  sigmaVisit <- as.numeric(attr(vc[[1]],"stddev")[2]) # random slope of visit over subject
+  sigmaResiduals <- as.numeric(attr(vc,"sc"))
+  sigmaCorrelation <- as.numeric(attr(vc[[1]],"correlation")[2])
+  
+  # Create an empty dataframe
+  d=expand.grid(Visit=1:visits,Child.ID=1:participants)
+  # Randomly sample from a binomial (to generate the diagnosis)
+  condition <- sample(rep(0:1, participants/2))
+  d$Diagnosis<-condition[d$Child.ID]
+  d$Diagnosis[is.na(d$Diagnosis)]<-1
+  
+  ## Define variance covariance matrices:
+  Sigma.u<-matrix(c(sigmaSubject^2,
+                    sigmaCorrelation*sigmaSubject*sigmaVisit,
+                    sigmaCorrelation*sigmaSubject*sigmaVisit,
+                    sigmaVisit^2),nrow=2)
+  
+  ## generate new fake participants (column1=RandomIntercept, column2=RandomSlope)
+  u<-mvrnorm(n=participants,
+             mu=c(0,0),Sigma=cov(ranef(model)$Child.ID))
+  
+  ## now generate fake data:
+  ### the outcome is extracted from a gaussian with
+  ### the solution to the model's equation as mean and
+  ### the residual standard deviation as standard deviation 
+  d$CHI_MLU <- rnorm(participants*visits,
+                     (Intercept+u[,1]) +
+                     (bVisit+u[,2])*d$Visit + 
+                     bDiagnosis*d$Diagnosis ,sigmaResiduals)  
+  
+  return(d)
+}
+```
+
+
+
+
+```{r}
+#diagnosis
+porfa=final_data %>% 
+  group_by(Diagnosis) %>% 
+  summarise(meany=mean(CHI_MLU))
+porfa$meany[1] - porfa$meany[2] #-0.6
+
+#new dataset
+new_dataset = createNewData(30, 6, ahuehuete)
+
+#new model for the new dataset
+new_model = lmer(CHI_MLU ~ Diagnosis + Visit  + (1 + Visit|Child.ID), new_dataset, REML=F)
+summary(new_model)
+
+#see the effect sizes
+fixef(new_model)
+
+fixef(new_model)["Diagnosis"] = 0.6
+fixef(new_model)["Visit"] = 0.2
+
+#see the power curve
+powerCurve5 = powerCurve(new_model,fixed("Diagnosis"),along="Child.ID", nsim=200)
+powerCurve6 = powerCurve(new_model,fixed("Visit"),along="Child.ID", nsim=200)
+
+plot(powerCurve5) 
+plot(powerCurve6)
+
+```
+
